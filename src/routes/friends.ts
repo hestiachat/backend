@@ -96,7 +96,7 @@ router.get('/friends/requests', authenticateToken, asyncHandler(async (req: Auth
     },
   });
 
-  res.json(requests.map(r => r.from));
+  res.json(requests.map((r: any) => r.from));
 }));
 
 export default router;
