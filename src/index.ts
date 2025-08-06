@@ -1,7 +1,13 @@
+import dotenv from 'dotenv';
+
+// Load environment variables first
+dotenv.config();
+
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import helmet from 'helmet';
+import compression from 'compression';
 import { Server as SocketIOServer } from 'socket.io';
 
 import authRoutes from './routes/auth';
@@ -10,20 +16,29 @@ import { authenticateToken } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
 
-dotenv.config();
-
 const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: { origin: "*" },
 });
 
+// Security middleware
+app.use(helmet());
+
+// Performance middleware
+app.use(compression());
+
+// CORS middleware
 app.use(cors());
+
+// Body parsing middleware
 app.use(express.json());
 
-app.use(authRoutes);
-app.use(groupRoutes);
+// Routes
+app.use('/api', authRoutes);
+app.use('/api', groupRoutes);
 
+// Error handling middleware (must be last)
 app.use(errorHandler);
 
 setupSocket(io);
