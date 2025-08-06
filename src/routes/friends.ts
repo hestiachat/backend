@@ -1,12 +1,25 @@
 import express, { Response } from 'express';
 import asyncHandler from 'express-async-handler';
+import Joi from 'joi';
 import { prisma } from '../prismaClient';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Validation schemas
+const idParamSchema = Joi.object({
+  id: Joi.string().pattern(/^\d+$/).required()
+});
+
 // Wysyłanie zaproszenia
 router.post('/friends/request/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // Validate params
+  const { error } = idParamSchema.validate(req.params);
+  if (error) {
+    res.status(400).json({ error: 'Invalid user ID' });
+    return;
+  }
+
   const targetId = parseInt(req.params.id);
   const userId = req.user!.userId;
 
@@ -41,6 +54,13 @@ router.post('/friends/request/:id', authenticateToken, asyncHandler(async (req: 
 
 // Akceptowanie zaproszenia
 router.post('/friends/accept/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // Validate params
+  const { error } = idParamSchema.validate(req.params);
+  if (error) {
+    res.status(400).json({ error: 'Invalid user ID' });
+    return;
+  }
+
   const fromId = parseInt(req.params.id);
   const toId = req.user!.userId;
 

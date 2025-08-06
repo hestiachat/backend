@@ -12,6 +12,7 @@ import { Server as SocketIOServer } from 'socket.io';
 
 import authRoutes from './routes/auth';
 import groupRoutes from './routes/groups';
+import friendRoutes from './routes/friends';
 import { authenticateToken } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
@@ -37,6 +38,7 @@ app.use(express.json());
 // Routes
 app.use('/api', authRoutes);
 app.use('/api', groupRoutes);
+app.use('/api', friendRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
