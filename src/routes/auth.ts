@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import rateLimit from 'express-rate-limit';
+import Joi from 'joi';
 import { prisma } from '../prismaClient';
 
 const router = express.Router();
@@ -12,6 +13,12 @@ interface AuthBody {
   username: string;
   password: string;
 }
+
+// Validation schemas
+const authSchema = Joi.object({
+  username: Joi.string().alphanum().min(3).max(30).required(),
+  password: Joi.string().min(6).max(100).required()
+});
 
 // Rate limiters
 const registerLimiter = rateLimit({
@@ -27,12 +34,14 @@ const loginLimiter = rateLimit({
 });
 
 router.post('/register', registerLimiter, asyncHandler(async (req: Request<{}, {}, AuthBody>, res: Response) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    res.status(400).json({ error: 'Missing username or password' });
+  // Validate input
+  const { error, value } = authSchema.validate(req.body);
+  if (error) {
+    res.status(400).json({ error: error.details[0].message });
     return;
   }
+
+  const { username, password } = value;
 
   const existingUser = await prisma.user.findUnique({ where: { username } });
   if (existingUser) {
@@ -49,12 +58,14 @@ router.post('/register', registerLimiter, asyncHandler(async (req: Request<{}, {
 }));
 
 router.post('/login', loginLimiter, asyncHandler(async (req: Request<{}, {}, AuthBody>, res: Response) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    res.status(400).json({ error: 'Missing username or password' });
+  // Validate input
+  const { error, value } = authSchema.validate(req.body);
+  if (error) {
+    res.status(400).json({ error: error.details[0].message });
     return;
   }
+
+  const { username, password } = value;
 
   const user = await prisma.user.findUnique({ where: { username } });
   if (!user) {
