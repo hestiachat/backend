@@ -15,6 +15,25 @@ router.post('/friends/request/:id', authenticateToken, asyncHandler(async (req: 
     return;
   }
 
+  // Check if target user exists
+  const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
+  if (!targetUser) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  // Check if already friends
+  const areFriends = await prisma.friend.findFirst({
+    where: {
+      userId: userId,
+      friendId: targetId,
+    },
+  });
+  if (areFriends) {
+    res.status(400).json({ error: 'Already friends' });
+    return;
+  }
+
   const existing = await prisma.friendRequest.findFirst({
     where: {
       OR: [
@@ -38,6 +57,7 @@ router.post('/friends/request/:id', authenticateToken, asyncHandler(async (req: 
 
   res.json({ success: true });
 }));
+
 
 // Akceptowanie zaproszenia
 router.post('/friends/accept/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

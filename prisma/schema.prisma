@@ -8,7 +8,6 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-
 model User {
   id       Int    @id @default(autoincrement())
   username String @unique
@@ -21,36 +20,56 @@ model User {
 
   memberships      GroupMembership[]
   messages         Message[]
+  createdGroups    Group[] @relation("GroupCreator") // Added for group creator relation
+
+  receivedMessages Message[] @relation("DMRecipient")
 }
 
-
 model Group {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  @db.Text // Added description field
+  isPrivate   Boolean  @default(false) // Added privacy field
+  createdBy   Int      // Added creator field
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt // Added for updates
+  
+  creator     User     @relation("GroupCreator", fields: [createdBy], references: [id]) // Added creator relation
   memberships GroupMembership[]
-  messages  Message[]
-  createdAt DateTime @default(now())
+  messages    Message[]
 }
 
 model GroupMembership {
-  id      Int    @id @default(autoincrement())
-  user    User   @relation(fields: [userId], references: [id])
-  userId  Int
-  group   Group  @relation(fields: [groupId], references: [id])
-  groupId Int
+  id       Int      @id @default(autoincrement())
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+  group    Group    @relation(fields: [groupId], references: [id])
+  groupId  Int
+  role     Role     @default(MEMBER) // Added role field
   joinedAt DateTime @default(now())
+  
+  @@unique([userId, groupId]) // Ensure user can only be in group once
+}
+
+// Added Role enum
+enum Role {
+  MEMBER
+  ADMIN
 }
 
 model Message {
   id        Int      @id @default(autoincrement())
-  content   String
+  content   String   @db.Text // Changed to TEXT for longer messages
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id]) // sender
   userId    Int
+
   group     Group?   @relation(fields: [groupId], references: [id])
   groupId   Int?
-}
 
+  recipient   User?   @relation("DMRecipient", fields: [recipientId], references: [id])
+  recipientId Int?
+}
 
 model FriendRequest {
   id        Int      @id @default(autoincrement())

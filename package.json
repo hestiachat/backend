@@ -13,6 +13,7 @@
     "@prisma/client": "^6.13.0",
     "are-we-there-yet": "^4.0.2",
     "bcrypt": "^5.1.0",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
@@ -20,11 +21,13 @@
     "express-rate-limit": "^8.0.1",
     "gauge": "^5.0.2",
     "glob": "^11.0.3",
+    "helmet": "^8.1.0",
     "inflight": "^1.0.6",
     "jsonwebtoken": "^9.0.0",
     "npmlog": "^7.0.1",
     "rimraf": "^6.0.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "zod": "^4.0.15"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import rateLimit from 'express-rate-limit';
 import { prisma } from '../prismaClient';
+import { z } from 'zod';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -12,6 +13,12 @@ interface AuthBody {
   username: string;
   password: string;
 }
+
+// Walidacja wejściowa
+const authSchema = z.object({
+  username: z.string().min(3).max(32),
+  password: z.string().min(6).max(128)
+});
 
 // Rate limiters
 const registerLimiter = rateLimit({
@@ -27,12 +34,12 @@ const loginLimiter = rateLimit({
 });
 
 router.post('/register', registerLimiter, asyncHandler(async (req: Request<{}, {}, AuthBody>, res: Response) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    res.status(400).json({ error: 'Missing username or password' });
+  const parse = authSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: 'Invalid input' });
     return;
   }
+  const { username, password } = parse.data;
 
   const existingUser = await prisma.user.findUnique({ where: { username } });
   if (existingUser) {
@@ -49,12 +56,12 @@ router.post('/register', registerLimiter, asyncHandler(async (req: Request<{}, {
 }));
 
 router.post('/login', loginLimiter, asyncHandler(async (req: Request<{}, {}, AuthBody>, res: Response) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    res.status(400).json({ error: 'Missing username or password' });
+  const parse = authSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: 'Invalid input' });
     return;
   }
+  const { username, password } = parse.data;
 
   const user = await prisma.user.findUnique({ where: { username } });
   if (!user) {
