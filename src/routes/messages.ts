@@ -259,7 +259,7 @@ router.get('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Authe
 
   const decryptedMessages = messages.map((msg) => {
     let decryptedContent = msg.content;
-    if (msg.iv && msg.authTag) {
+    if ('iv' in msg && 'authTag' in msg && msg.iv && msg.authTag) {
       decryptedContent = decryptMessage({
         encrypted: msg.content,
         iv: msg.iv,
@@ -306,7 +306,7 @@ router.get('/messages/:groupId', authenticateToken, asyncHandler(async (req: Aut
 
   const decryptedMessages = messages.map((msg) => {
     let decryptedContent = msg.content;
-    if (msg.iv && msg.authTag) {
+    if ('iv' in msg && 'authTag' in msg && msg.iv && msg.authTag) {
       decryptedContent = decryptMessage({
         encrypted: msg.content,
         iv: msg.iv,

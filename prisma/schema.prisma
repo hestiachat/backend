@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
@@ -20,23 +20,26 @@ model User {
 
   memberships      GroupMembership[]
   messages         Message[]
-  createdGroups    Group[] @relation("GroupCreator") // Added for group creator relation
+  createdGroups    Group[] @relation("GroupCreator") 
 
-  receivedMessages Message[]           @relation("DirectMessages")
+  receivedMessages Message[] @relation("DirectMessages")
+
+  Group Group[]
 }
 
 model Group {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  description String?  @db.Text // Added description field
-  isPrivate   Boolean  @default(false) // Added privacy field
-  createdBy   Int      // Added creator field
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt // Added for updates
-  
-  creator     User     @relation("GroupCreator", fields: [createdBy], references: [id]) // Added creator relation
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  isPrivate   Boolean   @default(false)
+  createdBy   Int
+  creator     User      @relation(fields: [createdBy], references: [id])
   memberships GroupMembership[]
   messages    Message[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  User User[] @relation("GroupCreator")
 }
 
 model GroupMembership {
@@ -45,13 +48,12 @@ model GroupMembership {
   userId   Int
   group    Group    @relation(fields: [groupId], references: [id])
   groupId  Int
-  role     Role     @default(MEMBER) // Added role field
+  role     Role     @default(MEMBER)
   joinedAt DateTime @default(now())
-  
-  @@unique([userId, groupId]) // Ensure user can only be in group once
+
+  @@unique([userId, groupId])
 }
 
-// Added Role enum
 enum Role {
   MEMBER
   ADMIN
@@ -60,8 +62,8 @@ enum Role {
 model Message {
   id          Int      @id @default(autoincrement())
   content     String
-  iv          String?  // <-- for AES-GCM IV
-  authTag     String?  // <-- for AES-GCM Auth Tag
+  iv          String?  // for AES-GCM IV
+  authTag     String?  // for AES-GCM Auth Tag
   createdAt   DateTime @default(now())
   userId      Int
   groupId     Int?

@@ -1,3 +1,5 @@
+// routes/friends.ts
+
 import express, { Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import { prisma } from '../prismaClient';
