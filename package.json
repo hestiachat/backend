@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.13.0",
+    "@types/multer": "^2.0.0",
     "are-we-there-yet": "^4.0.2",
     "bcrypt": "^5.1.0",
     "compression": "^1.8.1",
@@ -24,6 +25,7 @@
     "helmet": "^8.1.0",
     "inflight": "^1.0.6",
     "jsonwebtoken": "^9.0.0",
+    "multer": "^2.0.2",
     "npmlog": "^7.0.1",
     "rimraf": "^6.0.1",
     "socket.io": "^4.8.1",

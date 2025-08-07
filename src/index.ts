@@ -3,6 +3,7 @@ dotenv.config();
 
 import express from 'express';
 import http from 'http';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -33,12 +34,7 @@ const io = new SocketIOServer(server, {
 app.use(compression());
 
 // Allow all origins with no restrictions
-app.use(cors({
-  origin: "*",  // Allow all origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: false  // Disable credentials for public API
-}));
+app.use(cors({ origin: '*' }));
 
 // Add manual CORS headers for extra compatibility
 app.use((req, res, next) => {
@@ -71,14 +67,15 @@ app.use('/api', usersRoutes);
 app.use('/api', friendsRoutes);
 
 // Also serve routes without /api prefix for flexibility
-app.use('/', authRoutes);
-app.use('/', groupRoutes);
-app.use('/', messageRoutes);
-app.use('/', usersRoutes);
-app.use('/', friendsRoutes);
+app.use('/auth', authRoutes);
+app.use('/group', groupRoutes);
+app.use('/messages', messageRoutes);
+app.use('/users', usersRoutes);
+app.use('friends/', friendsRoutes);
 
 app.use(errorHandler);
 
+app.use('/uploads/avatars', express.static(path.join(__dirname, '../uploads/avatars')));
 setupSocket(io);
 app.set('io', io);
 

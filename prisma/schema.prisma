@@ -25,6 +25,8 @@ model User {
   receivedMessages Message[] @relation("DirectMessages")
 
   Group Group[]
+
+  profilePictureUrl String?
 }
 
 model Group {
