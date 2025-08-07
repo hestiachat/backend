@@ -3,8 +3,55 @@ import asyncHandler from 'express-async-handler';
 import { prisma } from '../prismaClient';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 const router = express.Router();
+
+// Encryption configuration
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+
+// Ensure encryption key is properly formatted
+const getEncryptionKey = (): Buffer => {
+  if (ENCRYPTION_KEY.length !== 64) {
+    throw new Error('ENCRYPTION_KEY must be 64 characters (32 bytes in hex)');
+  }
+  return Buffer.from(ENCRYPTION_KEY, 'hex');
+};
+
+// Encryption functions
+const encryptMessage = (text: string): { encrypted: string; iv: string; authTag: string } => {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipher(ENCRYPTION_ALGORITHM, getEncryptionKey());
+  cipher.setAAD(Buffer.from('message', 'utf8'));
+  
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  
+  const authTag = cipher.getAuthTag();
+  
+  return {
+    encrypted,
+    iv: iv.toString('hex'),
+    authTag: authTag.toString('hex')
+  };
+};
+
+const decryptMessage = (encryptedData: { encrypted: string; iv: string; authTag: string }): string => {
+  try {
+    const decipher = crypto.createDecipher(ENCRYPTION_ALGORITHM, getEncryptionKey());
+    decipher.setAAD(Buffer.from('message', 'utf8'));
+    decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
+    
+    let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    return '[Message could not be decrypted]';
+  }
+};
 
 // Group message validation
 const messageSchema = z.object({
@@ -37,22 +84,27 @@ router.post(
       return;
     }
 
-    // Create message
+    // Encrypt the message content
+    const encryptedData = encryptMessage(content);
+
+    // Create message with encrypted content
     const message = await prisma.message.create({
       data: {
-        content,
+        content: encryptedData.encrypted,
+        iv: encryptedData.iv,
+        authTag: encryptedData.authTag,
         userId: req.user!.userId,
         groupId,
       },
       include: { user: { select: { username: true } } },
     });
 
-    // Emit Socket.IO if present
+    // Emit Socket.IO if present (with decrypted content for real-time)
     if (req.app.get('io')) {
       const io = req.app.get('io');
       io.to(`group_${groupId}`).emit('newMessage', {
         id: message.id,
-        content: message.content,
+        content: content, // Send original content for real-time (already authorized users)
         createdAt: message.createdAt,
         userId: message.userId,
         username: message.user.username,
@@ -62,7 +114,7 @@ router.post(
 
     res.status(201).json({
       id: message.id,
-      content: message.content,
+      content: content, // Return original content to sender
       createdAt: message.createdAt,
       userId: message.userId,
       username: message.user.username,
@@ -111,9 +163,14 @@ router.post('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Auth
     return;
   }
 
+  // Encrypt the message content
+  const encryptedData = encryptMessage(content.trim());
+
   const message = await prisma.message.create({
     data: {
-      content: content.trim(),
+      content: encryptedData.encrypted,
+      iv: encryptedData.iv,
+      authTag: encryptedData.authTag,
       userId: fromId,      // sender
       recipientId: toId,   // recipient
     },
@@ -129,7 +186,7 @@ router.post('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Auth
     
     const messageData = {
       id: message.id,
-      content: message.content,
+      content: content.trim(), // Send original content for real-time
       createdAt: message.createdAt,
       userId: message.userId,
       username: message.user.username,
@@ -149,7 +206,7 @@ router.post('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Auth
 
   res.status(201).json({
     id: message.id,
-    content: message.content,
+    content: content.trim(), // Return original content to sender
     createdAt: message.createdAt,
     userId: message.userId,
     username: message.user.username,
@@ -197,13 +254,29 @@ router.get('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Authe
     include: { user: { select: { username: true } } }
   });
 
-  res.json(messages.map((msg: { id: any; content: any; createdAt: any; userId: any; user: { username: any; }; }) => ({
-    id: msg.id,
-    content: msg.content,
-    createdAt: msg.createdAt,
-    userId: msg.userId,
-    username: msg.user.username
-  })));
+  // Decrypt messages before sending
+  const decryptedMessages = messages.map((msg) => {
+    let decryptedContent = msg.content;
+    
+    // Only decrypt if we have encryption data
+    if (msg.iv && msg.authTag) {
+      decryptedContent = decryptMessage({
+        encrypted: msg.content,
+        iv: msg.iv,
+        authTag: msg.authTag
+      });
+    }
+
+    return {
+      id: msg.id,
+      content: decryptedContent,
+      createdAt: msg.createdAt,
+      userId: msg.userId,
+      username: msg.user.username
+    };
+  });
+
+  res.json(decryptedMessages);
 }));
 
 // GET /messages/:groupId — Get group messages
@@ -232,14 +305,30 @@ router.get('/messages/:groupId', authenticateToken, asyncHandler(async (req: Aut
     include: { user: { select: { username: true } } }
   });
 
-  res.json(messages.map((msg: { id: any; content: any; createdAt: any; userId: any; user: { username: any; }; groupId: any; }) => ({
-    id: msg.id,
-    content: msg.content,
-    createdAt: msg.createdAt,
-    userId: msg.userId,
-    username: msg.user.username,
-    groupId: msg.groupId
-  })));
+  // Decrypt messages before sending
+  const decryptedMessages = messages.map((msg) => {
+    let decryptedContent = msg.content;
+    
+    // Only decrypt if we have encryption data
+    if (msg.iv && msg.authTag) {
+      decryptedContent = decryptMessage({
+        encrypted: msg.content,
+        iv: msg.iv,
+        authTag: msg.authTag
+      });
+    }
+
+    return {
+      id: msg.id,
+      content: decryptedContent,
+      createdAt: msg.createdAt,
+      userId: msg.userId,
+      username: msg.user.username,
+      groupId: msg.groupId
+    };
+  });
+
+  res.json(decryptedMessages);
 }));
 
 export default router;

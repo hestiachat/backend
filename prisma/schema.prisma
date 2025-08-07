@@ -22,7 +22,7 @@ model User {
   messages         Message[]
   createdGroups    Group[] @relation("GroupCreator") // Added for group creator relation
 
-  receivedMessages Message[] @relation("DMRecipient")
+  receivedMessages Message[]           @relation("DirectMessages")
 }
 
 model Group {
@@ -58,17 +58,20 @@ enum Role {
 }
 
 model Message {
-  id        Int      @id @default(autoincrement())
-  content   String   @db.Text // Changed to TEXT for longer messages
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id]) // sender
-  userId    Int
-
-  group     Group?   @relation(fields: [groupId], references: [id])
-  groupId   Int?
-
-  recipient   User?   @relation("DMRecipient", fields: [recipientId], references: [id])
+  id          Int      @id @default(autoincrement())
+  content     String   // This will now store encrypted content
+  iv          String?  // Initialization vector for encryption
+  authTag     String?  // Authentication tag for encryption
+  createdAt   DateTime @default(now())
+  userId      Int
+  groupId     Int?
   recipientId Int?
+
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  recipient User?  @relation("DirectMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }
 
 model FriendRequest {
