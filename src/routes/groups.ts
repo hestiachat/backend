@@ -24,7 +24,7 @@ const addMemberSchema = z.object({
 });
 
 router.post(
-  '/groups',
+  '/',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const parse = createGroupSchema.safeParse(req.body);
@@ -69,7 +69,7 @@ router.post(
 );
 
 router.get(
-  '/groups',
+  '/',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.userId;
@@ -104,7 +104,7 @@ router.get(
 );
 
 router.get(
-  '/groups/:id',
+  '/:id',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const groupId = parseInt(req.params.id, 10);
@@ -162,7 +162,7 @@ router.get(
 );
 
 router.put(
-  '/groups/:id',
+  '/:id',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const groupId = parseInt(req.params.id, 10);
@@ -208,7 +208,7 @@ router.put(
 );
 
 router.post(
-  '/groups/:id/members',
+  '/:id/members',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const groupId = parseInt(req.params.id, 10);
@@ -277,7 +277,7 @@ router.post(
 );
 
 router.delete(
-  '/groups/:id/members/:userId',
+  '/:id/members/:userId',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const groupId = parseInt(req.params.id, 10);

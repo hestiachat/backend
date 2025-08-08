@@ -1,148 +1,141 @@
-// routes/auth.ts
-
-import express, { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import express, { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import rateLimit from 'express-rate-limit';
 import { prisma } from '../prismaClient';
-import { z } from 'zod';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET!;
 
-interface AuthBody {
-  username: string;
-  password: string;
-}
+const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_EXPIRES_IN = '7d';
 
 interface JwtPayload {
   userId: number;
   username: string;
 }
 
-// Walidacja wejściowa
-const authSchema = z.object({
-  username: z.string().min(3).max(32),
-  password: z.string().min(6).max(128)
-});
-
-// Rate limiters
-const registerLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
-  message: { error: 'Too many registration attempts, try again later.' },
-});
-
+// Rate limits
 const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   message: { error: 'Too many login attempts, try again later.' },
 });
+const registerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Too many register attempts, try again later.' },
+});
 
+// REGISTER
+router.post('/register', registerLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    res.status(400).json({ error: 'Username and password are required.' });
+    return;
+  }
+
+  if (username.length < 3 || username.length > 32) {
+    res.status(400).json({ error: 'Username must be from 3 to 32 characters.' });
+    return;
+  }
+
+  if (password.length < 8 || password.length > 128) {
+    res.status(400).json({ error: 'Password must be from 8 to 128 characters.' });
+    return;
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { username } });
+  if (existingUser) {
+    res.status(409).json({ error: 'Username already taken.' });
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  const user = await prisma.user.create({
+    data: {
+      username,
+      password: hashedPassword,
+    },
+  });
+
+  const token = jwt.sign(
+    { userId: user.id, username: user.username },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+
+  res.status(201).json({
+    message: 'User registered successfully.',
+    user: { id: user.id, username: user.username },
+    token,
+  });
+}));
+
+// LOGIN
+router.post('/login', loginLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    res.status(400).json({ error: 'Username and password are required.' });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({ where: { username } });
+  if (!user) {
+    res.status(401).json({ error: 'Invalid credentials.' });
+    return;
+  }
+
+  const passwordMatch = await bcrypt.compare(password, user.password);
+  if (!passwordMatch) {
+    res.status(401).json({ error: 'Invalid credentials.' });
+    return;
+  }
+
+  const token = jwt.sign(
+    { userId: user.id, username: user.username },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+
+  res.status(200).json({
+    message: 'Login successful.',
+    user: { id: user.id, username: user.username },
+    token,
+  });
+}));
+
+// AUTH STATUS
 const authStatusLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
   message: { error: 'Too many auth status requests, try again later.' },
 });
 
-router.post('/register', registerLimiter, asyncHandler(async (req: Request<{}, {}, AuthBody>, res: Response) => {
-  const parse = authSchema.safeParse(req.body);
-  if (!parse.success) {
-    res.status(400).json({ error: 'Invalid input' });
-    return;
-  }
-  const { username, password } = parse.data;
-
-  const existingUser = await prisma.user.findUnique({ where: { username } });
-  if (existingUser) {
-    res.status(400).json({ error: 'User already exists' });
-    return;
-  }
-
-  const hashed = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: { username, password: hashed },
-  });
-
-  const token = jwt.sign(
-    { userId: user.id, username: user.username },
-    JWT_SECRET,
-    { expiresIn: '1d' }
-  );
-
-  res.json({ 
-    token,
-    user: { id: user.id, username: user.username }
-  });
-}));
-
-router.post('/login', loginLimiter, asyncHandler(async (req: Request<{}, {}, AuthBody>, res: Response) => {
-  const parse = authSchema.safeParse(req.body);
-  if (!parse.success) {
-    res.status(400).json({ error: 'Invalid input' });
-    return;
-  }
-  const { username, password } = parse.data;
-
-  const user = await prisma.user.findUnique({ where: { username } });
-  if (!user) {
-    res.status(401).json({ error: 'Invalid credentials' });
-    return;
-  }
-
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) {
-    res.status(401).json({ error: 'Invalid credentials' });
-    return;
-  }
-
-  const token = jwt.sign(
-    { userId: user.id, username: user.username },
-    JWT_SECRET,
-    { expiresIn: '1d' }
-  );
-
-  res.json({ 
-    token,
-    user: { id: user.id, username: user.username }
-  });
-}));
-
-// Auth status endpoint
-router.get('/auth-status', authStatusLimiter, asyncHandler(async (req: Request, res: Response) => {
+router.get('/status', authStatusLimiter, asyncHandler(async (req: Request, res: Response) => {
   try {
-    // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ 
-        error: 'No token provided',
-        authenticated: false 
-      });
+      res.status(401).json({ error: 'No token provided', authenticated: false });
       return;
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // Verify token
+    const token = authHeader.substring(7);
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    
-    // Optional: Verify user still exists in database
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: { id: true, username: true }
     });
 
     if (!user) {
-      res.status(401).json({ 
-        error: 'User not found',
-        authenticated: false 
-      });
+      res.status(401).json({ error: 'User not found', authenticated: false });
       return;
     }
 
-    // Token is valid and user exists
     res.status(200).json({
       authenticated: true,
       user: {
@@ -152,23 +145,13 @@ router.get('/auth-status', authStatusLimiter, asyncHandler(async (req: Request, 
     });
 
   } catch (error) {
-    // Token is invalid, expired, or malformed
     if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({ 
-        error: 'Invalid token',
-        authenticated: false 
-      });
+      res.status(401).json({ error: 'Invalid token', authenticated: false });
     } else if (error instanceof jwt.TokenExpiredError) {
-      res.status(401).json({ 
-        error: 'Token expired',
-        authenticated: false 
-      });
+      res.status(401).json({ error: 'Token expired', authenticated: false });
     } else {
       console.error('Auth status error:', error);
-      res.status(401).json({ 
-        error: 'Authentication failed',
-        authenticated: false 
-      });
+      res.status(401).json({ error: 'Authentication failed', authenticated: false });
     }
   }
 }));

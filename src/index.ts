@@ -59,19 +59,12 @@ app.get('/health', (req, res) => {
 
 // app.use(publicAPILimiter);
 
-// Routes (with or without /api prefix)
-app.use('/api', authRoutes);
-app.use('/api', groupRoutes);
-app.use('/api', messageRoutes);
-app.use('/api', usersRoutes);
-app.use('/api', friendsRoutes);
-
 // Also serve routes without /api prefix for flexibility
 app.use('/auth', authRoutes);
-app.use('/group', groupRoutes);
+app.use('/groups', groupRoutes);
 app.use('/messages', messageRoutes);
 app.use('/users', usersRoutes);
-app.use('friends/', friendsRoutes);
+app.use('/friends', friendsRoutes);
 
 app.use(errorHandler);
 

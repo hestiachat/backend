@@ -8,7 +8,7 @@ import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 const router = express.Router();
 
 // Wysyłanie zaproszenia
-router.post('/friends/request/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+router.post('/request/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const targetId = parseInt(req.params.id);
   const userId = req.user!.userId;
 
@@ -62,7 +62,7 @@ router.post('/friends/request/:id', authenticateToken, asyncHandler(async (req: 
 
 
 // Akceptowanie zaproszenia
-router.post('/friends/accept/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+router.post('/accept/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const fromId = parseInt(req.params.id);
   const toId = req.user!.userId;
 
@@ -90,7 +90,7 @@ router.post('/friends/accept/:id', authenticateToken, asyncHandler(async (req: A
 }));
 
 // Pobieranie listy znajomych
-router.get('/friends', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+router.get('/', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.userId;
 
   const friends = await prisma.friend.findMany({
@@ -106,7 +106,7 @@ router.get('/friends', authenticateToken, asyncHandler(async (req: Authenticated
 }));
 
 // Zapytania oczekujące
-router.get('/friends/requests', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+router.get('/requests', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.userId;
 
   const requests = await prisma.friendRequest.findMany({
