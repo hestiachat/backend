@@ -3,93 +3,83 @@ generator client {
 }
 
 datasource db {
-  provider          = "mysql"
-  url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-  password String
-
-  sentRequests     FriendRequest[] @relation("RequestFrom")
-  receivedRequests FriendRequest[] @relation("RequestTo")
-  friends          Friend[] @relation("FriendUser")
-  friendsOf        Friend[] @relation("FriendFriend")
-
-  memberships      GroupMembership[]
-  messages         Message[]
-  createdGroups    Group[] @relation("GroupCreator") 
-
-  receivedMessages Message[] @relation("DirectMessages")
+  id                Int               @id @default(autoincrement())
+  username          String            @unique
+  password          String
+  createdAt         DateTime          @default(now())
+  profilePictureUrl String?
+  bio               String?
+  memberships       GroupMembership[]
+  messages          Message[]
+  friends           Friend[]          @relation("UserFriends")
+  friendOf          Friend[]          @relation("FriendsOfUser")
+  sentRequests      FriendRequest[]   @relation("SentRequests")
+  receivedRequests  FriendRequest[]   @relation("ReceivedRequests")
 
   Group Group[]
-
-  profilePictureUrl String?
 }
 
 model Group {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String?
-  isPrivate   Boolean   @default(false)
-  createdBy   Int
-  creator     User      @relation(fields: [createdBy], references: [id])
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  // Ensure this field exists
+  isPrivate   Boolean  @default(false) // Ensure this field exists
+  createdBy   Int?     // Ensure this field exists
+  creator     User?    @relation(fields: [createdBy], references: [id]) // Relation for creator
+  createdAt   DateTime @default(now())
   memberships GroupMembership[]
   messages    Message[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  User User[] @relation("GroupCreator")
 }
 
 model GroupMembership {
   id       Int      @id @default(autoincrement())
-  user     User     @relation(fields: [userId], references: [id])
   userId   Int
-  group    Group    @relation(fields: [groupId], references: [id])
   groupId  Int
-  role     Role     @default(MEMBER)
+  role     String?  // Ensure this field exists
   joinedAt DateTime @default(now())
-
-  @@unique([userId, groupId])
-}
-
-enum Role {
-  MEMBER
-  ADMIN
+  group    Group    @relation(fields: [groupId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 }
 
 model Message {
-  id          Int      @id @default(autoincrement())
-  content     String
-  iv          String?  // for AES-GCM IV
-  authTag     String?  // for AES-GCM Auth Tag
-  createdAt   DateTime @default(now())
-  userId      Int
-  groupId     Int?
-  recipientId Int?
-
-  user        User     @relation(fields: [userId], references: [id])
-  group       Group?   @relation(fields: [groupId], references: [id])
-  recipient   User?    @relation("DirectMessages", fields: [recipientId], references: [id])
-}
-
-model FriendRequest {
   id        Int      @id @default(autoincrement())
-  from      User     @relation("RequestFrom", fields: [fromId], references: [id])
-  fromId    Int
-  to        User     @relation("RequestTo", fields: [toId], references: [id])
-  toId      Int
+  content   String
   createdAt DateTime @default(now())
+  userId    Int
+  groupId   Int?
+  group     Group?   @relation(fields: [groupId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([groupId], map: "Message_groupId_fkey")
+  @@index([userId], map: "Message_userId_fkey")
 }
 
 model Friend {
-  id        Int      @id @default(autoincrement())
-  user      User     @relation("FriendUser", fields: [userId], references: [id])
-  userId    Int
-  friend    User     @relation("FriendFriend", fields: [friendId], references: [id])
-  friendId  Int
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  friendId   Int
+  createdAt  DateTime @default(now())
+  user       User     @relation("UserFriends", fields: [userId], references: [id])
+  friend     User     @relation("FriendsOfUser", fields: [friendId], references: [id])
+
+  @@index([userId], map: "Friend_userId_fkey")
+  @@index([friendId], map: "Friend_friendId_fkey")
+}
+
+model FriendRequest {
+  id          Int      @id @default(autoincrement())
+  requesterId Int
+  receiverId  Int
+  createdAt   DateTime @default(now())
+  status      String
+  requester   User     @relation("SentRequests", fields: [requesterId], references: [id])
+  receiver    User     @relation("ReceivedRequests", fields: [receiverId], references: [id])
+
+  @@index([requesterId], map: "FriendRequest_requesterId_fkey")
+  @@index([receiverId], map: "FriendRequest_receiverId_fkey")
 }

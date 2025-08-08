@@ -67,12 +67,33 @@ router.get('/by-username/:username', asyncHandler(async (req: Request, res: Resp
   }
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, username: true, profilePictureUrl: true }
+    select: { id: true, username: true, profilePictureUrl: true, bio: true }
   });
   if (!user) {
     res.status(404).json({ error: 'User not found' });
     return;
   }
+  res.json(user);
+}));
+
+// PATCH /users/bio
+router.patch('/bio', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  const userId = req.user?.userId;
+  const { bio } = req.body;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  if (typeof bio !== 'string' || bio.length > 500) {
+    res.status(400).json({ error: 'Bio must be a string up to 500 characters.' });
+    return;
+  }
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { bio },
+    select: { id: true, username: true, profilePictureUrl: true, bio: true }
+  });
   res.json(user);
 }));
 
@@ -85,7 +106,7 @@ router.get('/by-id/:id', asyncHandler(async (req: Request, res: Response): Promi
   }
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, username: true, profilePictureUrl: true }
+    select: { id: true, username: true, profilePictureUrl: true, bio: true }
   });
   if (!user) {
     res.status(404).json({ error: 'User not found' });
