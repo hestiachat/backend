@@ -37,7 +37,7 @@ router.post(
     const userId = req.user!.userId;
 
     try {
-      const group = await prisma.$transaction(async (tx) => {
+      const group = await prisma.$transaction(async (tx: any) => {
         const newGroup = await tx.group.create({
           data: { name, description, isPrivate, createdBy: userId },
         });
@@ -86,7 +86,7 @@ router.get(
       },
     });
 
-    const groups = memberships.map((membership) => ({
+    const groups = memberships.map((membership: any) => ({
       id: membership.group.id,
       name: membership.group.name,
       description: membership.group.description,
@@ -151,7 +151,7 @@ router.get(
       memberCount: group._count.memberships,
       messageCount: group._count.messages,
       userRole: membership.role,
-      members: group.memberships.map((member) => ({
+      members: group.memberships.map((member: any) => ({
         userId: member.user.id,
         username: member.user.username,
         role: member.role,
