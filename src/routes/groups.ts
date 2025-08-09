@@ -37,7 +37,7 @@ router.post(
     const userId = req.user!.userId;
 
     try {
-      const group = await prisma.$transaction(async (tx: any) => {
+      const group = await prisma.$transaction(async (tx) => {
         const newGroup = await tx.group.create({
           data: { name, description, isPrivate, createdBy: userId },
         });
@@ -56,11 +56,14 @@ router.post(
           name: group.name,
           description: group.description,
           isPrivate: group.isPrivate,
-          createdAt: group.createdAt,
+          createdAt: new Date(group.createdAt).getTime(), // Unix timestamp
         });
       }
 
-      res.status(201).json(group);
+      res.status(201).json({
+        ...group,
+        createdAt: new Date(group.createdAt).getTime(), // Unix timestamp
+      });
     } catch (error) {
       console.error('Error creating group:', error);
       res.status(500).json({ error: 'Failed to create group' });
@@ -86,15 +89,15 @@ router.get(
       },
     });
 
-    const groups = memberships.map((membership: any) => ({
+    const groups = memberships.map((membership) => ({
       id: membership.group.id,
       name: membership.group.name,
       description: membership.group.description,
       isPrivate: membership.group.isPrivate,
       memberCount: membership.group._count.memberships,
       role: membership.role,
-      joinedAt: membership.joinedAt,
-      createdAt: membership.group.createdAt,
+      joinedAt: new Date(membership.joinedAt).getTime(), // Unix timestamp
+      createdAt: new Date(membership.group.createdAt).getTime(), // Unix timestamp
       createdBy: membership.group.createdBy,
       creatorUsername: membership.group.creator.username,
     }));
@@ -145,17 +148,17 @@ router.get(
       name: group.name,
       description: group.description,
       isPrivate: group.isPrivate,
-      createdAt: group.createdAt,
+      createdAt: new Date(group.createdAt).getTime(), // Unix timestamp
       createdBy: group.createdBy,
       creatorUsername: group.creator.username,
       memberCount: group._count.memberships,
       messageCount: group._count.messages,
       userRole: membership.role,
-      members: group.memberships.map((member: any) => ({
+      members: group.memberships.map((member) => ({
         userId: member.user.id,
         username: member.user.username,
         role: member.role,
-        joinedAt: member.joinedAt,
+        joinedAt: new Date(member.joinedAt).getTime(), // Unix timestamp
       })),
     });
   })
@@ -203,7 +206,10 @@ router.put(
       });
     }
 
-    res.json(updatedGroup);
+    res.json({
+      ...updatedGroup,
+      createdAt: new Date(updatedGroup.createdAt).getTime(), // Unix timestamp
+    });
   })
 );
 
@@ -263,7 +269,7 @@ router.post(
         userId: membership.user.id,
         username: membership.user.username,
         role: membership.role,
-        joinedAt: membership.joinedAt,
+        joinedAt: new Date(membership.joinedAt).getTime(), // Unix timestamp
       });
     }
 
@@ -271,7 +277,7 @@ router.post(
       userId: membership.user.id,
       username: membership.user.username,
       role: membership.role,
-      joinedAt: membership.joinedAt,
+      joinedAt: new Date(membership.joinedAt).getTime(), // Unix timestamp
     });
   })
 );

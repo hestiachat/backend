@@ -67,13 +67,16 @@ router.get('/by-username/:username', asyncHandler(async (req: Request, res: Resp
   }
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, username: true, profilePictureUrl: true, bio: true }
+    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true}
   });
   if (!user) {
     res.status(404).json({ error: 'User not found' });
     return;
   }
-  res.json(user);
+  res.json({
+    ...user,
+    createdAt: new Date(user.createdAt).getTime(), // Unix timestamp
+  });
 }));
 
 // PATCH /users/bio
@@ -92,9 +95,12 @@ router.patch('/bio', authenticateToken, asyncHandler(async (req: Request, res: R
   const user = await prisma.user.update({
     where: { id: userId },
     data: { bio },
-    select: { id: true, username: true, profilePictureUrl: true, bio: true }
+    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true}
   });
-  res.json(user);
+  res.json({
+    ...user,
+    createdAt: new Date(user.createdAt).getTime(), // Unix timestamp
+  });
 }));
 
 // GET /users/by-id/:id
@@ -106,13 +112,16 @@ router.get('/by-id/:id', asyncHandler(async (req: Request, res: Response): Promi
   }
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, username: true, profilePictureUrl: true, bio: true }
+    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true}
   });
   if (!user) {
     res.status(404).json({ error: 'User not found' });
     return;
   }
-  res.json(user);
+  res.json({
+    ...user,
+    createdAt: new Date(user.createdAt).getTime(), // Unix timestamp
+  });
 }));
 
 // PATCH /users/username
@@ -132,9 +141,12 @@ router.patch('/username', authenticateToken, asyncHandler(async (req: Request, r
     const user = await prisma.user.update({
       where: { id: userId },
       data: { username },
-      select: { id: true, username: true, profilePictureUrl: true },
+      select: { id: true, username: true, profilePictureUrl: true, createdAt: true},
     });
-    res.json(user);
+    res.json({
+      ...user,
+      createdAt: new Date(user.createdAt).getTime(), // Unix timestamp
+    });
   } catch (err: any) {
     if (err.code === 'P2002') {
       res.status(409).json({ error: 'Username already taken' });
@@ -167,13 +179,16 @@ router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Resp
   }
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, username: true, profilePictureUrl: true }
+    select: { id: true, username: true, profilePictureUrl: true, createdAt: true}
   });
   if (!user) {
     res.status(404).json({ error: 'User not found' });
     return;
   }
-  res.json(user);
+  res.json({
+    ...user,
+    createdAt: new Date(user.createdAt).getTime(), // Unix timestamp
+  });
 }));
 
 // PATCH /users/profile-picture
@@ -202,10 +217,14 @@ router.patch('/profile-picture', authenticateToken, upload.single('avatar'), asy
     const user = await prisma.user.update({
       where: { id: userId },
       data: { profilePictureUrl },
-      select: { id: true, username: true, profilePictureUrl: true },
+      select: { id: true, username: true, profilePictureUrl: true, createdAt: true},
     });
     const fullUrl = req.protocol + '://' + req.get('host') + user.profilePictureUrl;
-    res.json({ ...user, profilePictureUrl: fullUrl });
+    res.json({
+      ...user,
+      profilePictureUrl: fullUrl,
+      createdAt: new Date(user.createdAt).getTime(), // Unix timestamp
+    });
   } catch (e) {
     if (req.file) {
       fs.unlink(path.join(req.file.destination, req.file.filename), () => {});

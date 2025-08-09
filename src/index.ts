@@ -76,5 +76,6 @@ const PORT = parseInt(process.env.PORT || '4000');
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
+  console.log(`working dir: ${path.resolve(__dirname)}`);
   console.log(`API available at http://0.0.0.0:${PORT}/api`);
 });

@@ -72,7 +72,7 @@ const messageSchema = z.object({
  * Body: { groupId: number, content: string }
  */
 router.post(
-  '/messages',
+  '/',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const parse = messageSchema.safeParse(req.body);
@@ -112,7 +112,7 @@ router.post(
       io.to(`group_${groupId}`).emit('newMessage', {
         id: message.id,
         content: content,
-        createdAt: message.createdAt,
+        createdAt: message.createdAt.getTime(), // Unix timestamp
         userId: message.userId,
         username: message.user.username,
         groupId: groupId,
@@ -122,7 +122,7 @@ router.post(
     res.status(201).json({
       id: message.id,
       content: content,
-      createdAt: message.createdAt,
+      createdAt: message.createdAt.getTime(), // Unix timestamp
       userId: message.userId,
       username: message.user.username,
     });
@@ -193,7 +193,7 @@ router.post('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Auth
     const messageData = {
       id: message.id,
       content: content.trim(),
-      createdAt: message.createdAt,
+      createdAt: message.createdAt.getTime(), // Unix timestamp
       userId: message.userId,
       username: message.user.username,
       recipientId: toId,
@@ -210,7 +210,7 @@ router.post('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Auth
   res.status(201).json({
     id: message.id,
     content: content.trim(),
-    createdAt: message.createdAt,
+    createdAt: message.createdAt.getTime(), // Unix timestamp
     userId: message.userId,
     username: message.user.username,
   });
@@ -269,7 +269,7 @@ router.get('/dm/:id/messages', authenticateToken, asyncHandler(async (req: Authe
     return {
       id: msg.id,
       content: decryptedContent,
-      createdAt: msg.createdAt,
+      createdAt: msg.createdAt.getTime(), // Unix timestamp
       userId: msg.userId,
       username: msg.user.username
     };
@@ -316,7 +316,7 @@ router.get('/messages/:groupId', authenticateToken, asyncHandler(async (req: Aut
     return {
       id: msg.id,
       content: decryptedContent,
-      createdAt: msg.createdAt,
+      createdAt: msg.createdAt.getTime(), // Unix timestamp
       userId: msg.userId,
       username: msg.user.username,
       groupId: msg.groupId

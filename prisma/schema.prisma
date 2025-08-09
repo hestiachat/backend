@@ -22,41 +22,50 @@ model User {
   receivedRequests  FriendRequest[]   @relation("ReceivedRequests")
 
   Group Group[]
+
+  Message Message[] @relation("RecipientMessages")
 }
 
 model Group {
   id          Int      @id @default(autoincrement())
   name        String   @unique
-  description String?  // Ensure this field exists
-  isPrivate   Boolean  @default(false) // Ensure this field exists
-  createdBy   Int?     // Ensure this field exists
-  creator     User?    @relation(fields: [createdBy], references: [id]) // Relation for creator
+  description String?  
+  isPrivate   Boolean  @default(false)
+  createdBy   Int
+  creator     User     @relation(fields: [createdBy], references: [id])
   createdAt   DateTime @default(now())
   memberships GroupMembership[]
   messages    Message[]
 }
 
+enum MembershipRole {
+  MEMBER
+  ADMIN
+}
+
 model GroupMembership {
-  id       Int      @id @default(autoincrement())
+  id       Int            @id @default(autoincrement())
   userId   Int
   groupId  Int
-  role     String?  // Ensure this field exists
-  joinedAt DateTime @default(now())
-  group    Group    @relation(fields: [groupId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
+  role     MembershipRole
+  joinedAt DateTime       @default(now())
+  group    Group          @relation(fields: [groupId], references: [id])
+  user     User           @relation(fields: [userId], references: [id])
 }
 
 model Message {
-  id        Int      @id @default(autoincrement())
-  content   String
-  createdAt DateTime @default(now())
-  userId    Int
-  groupId   Int?
-  group     Group?   @relation(fields: [groupId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  id          Int      @id @default(autoincrement())
+  content     String
+  iv          String
+  authTag     String
+  createdAt   DateTime @default(now())
+  userId      Int
+  groupId     Int?  
+  recipientId Int?
 
-  @@index([groupId], map: "Message_groupId_fkey")
-  @@index([userId], map: "Message_userId_fkey")
+  user        User    @relation(fields: [userId], references: [id])
+  group       Group?  @relation(fields: [groupId], references: [id])
+  recipient   User?   @relation("RecipientMessages", fields: [recipientId], references: [id])
 }
 
 model Friend {
@@ -72,14 +81,12 @@ model Friend {
 }
 
 model FriendRequest {
-  id          Int      @id @default(autoincrement())
-  requesterId Int
-  receiverId  Int
-  createdAt   DateTime @default(now())
-  status      String
-  requester   User     @relation("SentRequests", fields: [requesterId], references: [id])
-  receiver    User     @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  senderId   Int
+  receiverId Int
+  status     String
 
-  @@index([requesterId], map: "FriendRequest_requesterId_fkey")
-  @@index([receiverId], map: "FriendRequest_receiverId_fkey")
+  sender     User     @relation("SentRequests", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedRequests", fields: [receiverId], references: [id])
 }

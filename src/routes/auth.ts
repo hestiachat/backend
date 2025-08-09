@@ -1,9 +1,11 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import asyncHandler from 'express-async-handler';
 import rateLimit from 'express-rate-limit';
 import { prisma } from '../prismaClient';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
@@ -21,11 +23,47 @@ const loginLimiter = rateLimit({
   max: 10,
   message: { error: 'Too many login attempts, try again later.' },
 });
+
+const logFilePath = path.resolve(__dirname, '../logs/ratelimits.json');
+
+const logRateLimitEvent = (logEntry: object) => {
+  const logData = JSON.stringify(logEntry) + '\n';
+  fs.appendFile(logFilePath, logData, (err) => {
+    if (err) {
+      console.error('Failed to log rate-limit event:', err);
+    }
+  });
+};
+
+// Rate limiter
 const registerLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
-  message: { error: 'Too many register attempts, try again later.' },
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3,
+  message: { error: 'Too many register attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip ?? 'unknown-ip',
+  handler: (req: Request, res: Response, next: NextFunction, options) => {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      ip: req.ip ?? 'unknown-ip',
+      method: req.method,
+      path: req.originalUrl,
+      message: options.message,
+      statusCode: options.statusCode ?? 429,
+    };
+
+    // Log the rate-limit event to the file
+    logRateLimitEvent(logEntry);
+
+    // Log to console for debugging
+    console.error(`Rate limit exceeded for IP: ${req.ip ?? 'unknown-ip'} at ${logEntry.timestamp}`);
+
+    // Send the response
+    res.status(logEntry.statusCode).send(logEntry.message);
+  },
 });
+
 
 // REGISTER
 router.post('/register', registerLimiter, asyncHandler(async (req: Request, res: Response) => {
