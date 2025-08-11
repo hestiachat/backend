@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler';
 import { prisma } from '../prismaClient';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -22,6 +23,59 @@ const addMemberSchema = z.object({
   userId: z.number().int().positive(),
   role: z.enum(['MEMBER', 'ADMIN']).default('MEMBER'),
 });
+
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+
+const getEncryptionKey = (): Buffer => {
+  if (!ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY environment variable is not set!');
+  }
+  if (ENCRYPTION_KEY.length !== 64) {
+    throw new Error('ENCRYPTION_KEY must be 64 characters (32 bytes in hex)');
+  }
+  return Buffer.from(ENCRYPTION_KEY, 'hex');
+};
+
+
+const encryptMessage = (text: string): { encrypted: string; iv: string; authTag: string } => {
+  const iv = crypto.randomBytes(12);
+  const key = getEncryptionKey();
+  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+
+  cipher.setAAD(Buffer.from('message', 'utf8'));
+
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+
+  const authTag = cipher.getAuthTag();
+
+  return {
+    encrypted,
+    iv: iv.toString('hex'),
+    authTag: authTag.toString('hex')
+  };
+};
+
+const decryptMessage = (encryptedData: { encrypted: string; iv: string; authTag: string }): string => {
+  try {
+    const key = getEncryptionKey();
+    const iv = Buffer.from(encryptedData.iv, 'hex');
+    const authTag = Buffer.from(encryptedData.authTag, 'hex');
+    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+
+    decipher.setAAD(Buffer.from('message', 'utf8'));
+    decipher.setAuthTag(authTag);
+
+    let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    return decrypted;
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    return '[Message could not be decrypted]';
+  }
+};
 
 router.post(
   '/',
@@ -103,6 +157,80 @@ router.get(
     }));
 
     res.json(groups);
+  })
+);
+
+// POST /groups/:id/messages — Send a message to a group by ID
+router.post(
+  '/:id/messages',
+  authenticateToken,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const groupId = parseInt(req.params.id, 10);
+    const userId = req.user!.userId;
+    const { content } = req.body;
+
+    // Validate input
+    if (isNaN(groupId)) {
+      res.status(400).json({ error: 'Invalid group ID' });
+      return;
+    }
+    if (!content || typeof content !== 'string' || !content.trim()) {
+      res.status(400).json({ error: 'Content is required' });
+      return;
+    }
+    if (content.length > 2048) {
+      res.status(400).json({ error: 'Message too long' });
+      return;
+    }
+
+    // Membership check
+    const isMember = await prisma.groupMembership.findFirst({
+      where: { groupId, userId },
+    });
+    if (!isMember) {
+      res.status(403).json({ error: 'Not a group member' });
+      return;
+    }
+
+    // Encrypt the message
+    // Import encryptMessage from messages.ts if necessary:
+    // If in same repo, use the same function or move the util to a shared file.
+    // Here, we'll assume encryptMessage is accessible.
+    const encryptedData = encryptMessage(content.trim());
+
+    // Create message
+    const message = await prisma.message.create({
+      data: {
+        content: encryptedData.encrypted,
+        iv: encryptedData.iv,
+        authTag: encryptedData.authTag,
+        userId,
+        groupId,
+      },
+      include: { user: { select: { username: true } } },
+    });
+
+    // Emit Socket.IO if present
+    if (req.app.get('io')) {
+      const io = req.app.get('io');
+      io.to(`group_${groupId}`).emit('newMessage', {
+        id: message.id,
+        content: content.trim(),
+        createdAt: message.createdAt.getTime(),
+        userId: message.userId,
+        username: message.user.username,
+        groupId: groupId,
+      });
+    }
+
+    res.status(201).json({
+      id: message.id,
+      content: content.trim(),
+      createdAt: message.createdAt.getTime(),
+      userId: message.userId,
+      username: message.user.username,
+      groupId: groupId,
+    });
   })
 );
 

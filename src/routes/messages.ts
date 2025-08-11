@@ -66,69 +66,6 @@ const messageSchema = z.object({
   groupId: z.number().int().positive(),
 });
 
-/**
- * POST /messages
- * Send a message to a group (requires auth).
- * Body: { groupId: number, content: string }
- */
-router.post(
-  '/',
-  authenticateToken,
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const parse = messageSchema.safeParse(req.body);
-    if (!parse.success) {
-      res.status(400).json({ error: 'Invalid input' });
-      return;
-    }
-    const { groupId, content } = parse.data;
-
-    // Check membership
-    const isMember = await prisma.groupMembership.findFirst({
-      where: { groupId, userId: req.user!.userId },
-    });
-    if (!isMember) {
-      res.status(403).json({ error: 'Not a group member' });
-      return;
-    }
-
-    // Encrypt the message content
-    const encryptedData = encryptMessage(content);
-
-    // Create message with encrypted content
-    const message = await prisma.message.create({
-      data: {
-        content: encryptedData.encrypted,
-        iv: encryptedData.iv,
-        authTag: encryptedData.authTag,
-        userId: req.user!.userId,
-        groupId,
-      },
-      include: { user: { select: { username: true } } },
-    });
-
-    // Emit Socket.IO if present (with decrypted content for real-time)
-    if (req.app.get('io')) {
-      const io = req.app.get('io');
-      io.to(`group_${groupId}`).emit('newMessage', {
-        id: message.id,
-        content: content,
-        createdAt: message.createdAt.getTime(), // Unix timestamp
-        userId: message.userId,
-        username: message.user.username,
-        groupId: groupId,
-      });
-    }
-
-    res.status(201).json({
-      id: message.id,
-      content: content,
-      createdAt: message.createdAt.getTime(), // Unix timestamp
-      userId: message.userId,
-      username: message.user.username,
-    });
-  })
-);
-
 // POST /dm/:id/messages — Send a direct message
 router.post('/dm/:id/messages', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const fromId = req.user!.userId;

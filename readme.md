@@ -76,7 +76,8 @@ You receive this token after logging in (`POST /auth/login`).
 - **GET `/groups`**
   - List groups you belong to.
   - Requires auth.
-
+- **POST `/groups/:id/messages`** 
+  - Send a message to a group by ID
 - **GET `/groups/:id`**
   - Get group details by id.
   - Requires auth.
@@ -90,9 +91,6 @@ You receive this token after logging in (`POST /auth/login`).
 
 ### Messages
 
-- **POST `/messages`**
-  - Send a message to a group
-  - Body: { groupId: number, content: string }
 - **POST `/dm/:id/messages`**
   - Send a direct message
 - **GET `/dm/:id/messages`**
