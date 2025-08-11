@@ -17,6 +17,8 @@ Authorization: Bearer <token>
 You receive this token after logging in (`POST /auth/login`).  
 **All endpoints prefixed with `/auth`, `/groups`, `/messages`, `/users`, `/friends` require authorization unless noted.**
 
+### **API Base URL => `https://api.toster.lol`** 
+
 ---
 
 ## Endpoints
@@ -129,7 +131,7 @@ You receive this token after logging in (`POST /auth/login`).
 
 - Connect:  
   ```js
-  const socket = io("http://api.toster.lol", {
+  const socket = io("https://api.toster.lol", {
     auth: { token: "<jwt_token>" }
   });
   ```
