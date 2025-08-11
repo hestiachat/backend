@@ -37,7 +37,6 @@ const getEncryptionKey = (): Buffer => {
   return Buffer.from(ENCRYPTION_KEY, 'hex');
 };
 
-
 const encryptMessage = (text: string): { encrypted: string; iv: string; authTag: string } => {
   const iv = crypto.randomBytes(12);
   const key = getEncryptionKey();
@@ -77,6 +76,7 @@ const decryptMessage = (encryptedData: { encrypted: string; iv: string; authTag:
   }
 };
 
+// POST /groups - create a group
 router.post(
   '/',
   authenticateToken,
@@ -110,13 +110,13 @@ router.post(
           name: group.name,
           description: group.description,
           isPrivate: group.isPrivate,
-          createdAt: new Date(group.createdAt).getTime(), // Unix timestamp
+          createdAt: new Date(group.createdAt).getTime(),
         });
       }
 
       res.status(201).json({
         ...group,
-        createdAt: new Date(group.createdAt).getTime(), // Unix timestamp
+        createdAt: new Date(group.createdAt).getTime(),
       });
     } catch (error) {
       console.error('Error creating group:', error);
@@ -125,6 +125,7 @@ router.post(
   })
 );
 
+// GET /groups - list user's groups
 router.get(
   '/',
   authenticateToken,
@@ -150,8 +151,8 @@ router.get(
       isPrivate: membership.group.isPrivate,
       memberCount: membership.group._count.memberships,
       role: membership.role,
-      joinedAt: new Date(membership.joinedAt).getTime(), // Unix timestamp
-      createdAt: new Date(membership.group.createdAt).getTime(), // Unix timestamp
+      joinedAt: new Date(membership.joinedAt).getTime(),
+      createdAt: new Date(membership.group.createdAt).getTime(),
       createdBy: membership.group.createdBy,
       creatorUsername: membership.group.creator.username,
     }));
@@ -169,7 +170,6 @@ router.post(
     const userId = req.user!.userId;
     const { content } = req.body;
 
-    // Validate input
     if (isNaN(groupId)) {
       res.status(400).json({ error: 'Invalid group ID' });
       return;
@@ -183,7 +183,6 @@ router.post(
       return;
     }
 
-    // Membership check
     const isMember = await prisma.groupMembership.findFirst({
       where: { groupId, userId },
     });
@@ -192,25 +191,19 @@ router.post(
       return;
     }
 
-    // Encrypt the message
-    // Import encryptMessage from messages.ts if necessary:
-    // If in same repo, use the same function or move the util to a shared file.
-    // Here, we'll assume encryptMessage is accessible.
     const encryptedData = encryptMessage(content.trim());
 
-    // Create message
     const message = await prisma.message.create({
       data: {
         content: encryptedData.encrypted,
-        iv: encryptedData.iv,
-        authTag: encryptedData.authTag,
+        iv: encryptedData.iv ?? '',
+        authTag: encryptedData.authTag ?? '',
         userId,
         groupId,
       },
       include: { user: { select: { username: true } } },
     });
 
-    // Emit Socket.IO if present
     if (req.app.get('io')) {
       const io = req.app.get('io');
       io.to(`group_${groupId}`).emit('newMessage', {
@@ -234,6 +227,57 @@ router.post(
   })
 );
 
+// GET /groups/:id/messages — Get messages from a group (with decryption)
+router.get(
+  '/:id/messages',
+  authenticateToken,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const groupId = parseInt(req.params.id, 10);
+    const userId = req.user!.userId;
+
+    if (isNaN(groupId)) {
+      res.status(400).json({ error: 'Invalid group ID' });
+      return;
+    }
+
+    const membership = await prisma.groupMembership.findFirst({
+      where: { groupId, userId },
+    });
+    if (!membership) {
+      res.status(403).json({ error: 'Not a group member' });
+      return;
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { groupId },
+      orderBy: { createdAt: 'asc' },
+      include: { user: { select: { username: true } } },
+    });
+
+    const decryptedMessages = messages.map((msg) => {
+      let content = '[Encrypted]';
+      try {
+        content = decryptMessage({
+          encrypted: msg.content ?? '',
+          iv: msg.iv ?? '',
+          authTag: msg.authTag ?? '',
+        });
+      } catch {
+        // If decryption fails, keep as [Encrypted]
+      }
+      return {
+        id: msg.id,
+        content,
+        createdAt: msg.createdAt.getTime(),
+        username: msg.user.username,
+      };
+    });
+
+    res.json(decryptedMessages);
+  })
+);
+
+// GET /groups/:id - group details
 router.get(
   '/:id',
   authenticateToken,
@@ -276,7 +320,7 @@ router.get(
       name: group.name,
       description: group.description,
       isPrivate: group.isPrivate,
-      createdAt: new Date(group.createdAt).getTime(), // Unix timestamp
+      createdAt: new Date(group.createdAt).getTime(),
       createdBy: group.createdBy,
       creatorUsername: group.creator.username,
       memberCount: group._count.memberships,
@@ -286,12 +330,13 @@ router.get(
         userId: member.user.id,
         username: member.user.username,
         role: member.role,
-        joinedAt: new Date(member.joinedAt).getTime(), // Unix timestamp
+        joinedAt: new Date(member.joinedAt).getTime(),
       })),
     });
   })
 );
 
+// PUT /groups/:id - update group
 router.put(
   '/:id',
   authenticateToken,
@@ -336,31 +381,27 @@ router.put(
 
     res.json({
       ...updatedGroup,
-      createdAt: new Date(updatedGroup.createdAt).getTime(), // Unix timestamp
+      createdAt: new Date(updatedGroup.createdAt).getTime(),
     });
   })
 );
 
+// POST /groups/:id/members - add member
 router.post(
-  '/:id/members',
+  '/:id/members/:userId',
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const groupId = parseInt(req.params.id, 10);
+    const userIdToAdd = parseInt(req.params.userId, 10);
     const currentUserId = req.user!.userId;
+    const role = req.body.role ?? 'MEMBER'; // default to MEMBER
 
-    if (isNaN(groupId)) {
-      res.status(400).json({ error: 'Invalid group ID' });
+    if (isNaN(groupId) || isNaN(userIdToAdd)) {
+      res.status(400).json({ error: 'Invalid group ID or user ID' });
       return;
     }
 
-    const parse = addMemberSchema.safeParse(req.body);
-    if (!parse.success) {
-      res.status(400).json({ error: 'Invalid input', details: parse.error.issues });
-      return;
-    }
-
-    const { userId, role } = parse.data;
-
+    // Check if requestor is admin in the group
     const adminMembership = await prisma.groupMembership.findFirst({
       where: { groupId, userId: currentUserId, role: 'ADMIN' },
     });
@@ -369,8 +410,9 @@ router.post(
       return;
     }
 
+    // Check target user exists
     const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userIdToAdd },
       select: { id: true, username: true },
     });
     if (!targetUser) {
@@ -378,16 +420,23 @@ router.post(
       return;
     }
 
+    // Check not already a member
     const existingMembership = await prisma.groupMembership.findFirst({
-      where: { groupId, userId },
+      where: { groupId, userId: userIdToAdd },
     });
     if (existingMembership) {
       res.status(409).json({ error: 'User is already a member' });
       return;
     }
 
+    // Validate role (optional, but safe)
+    if (role !== 'MEMBER' && role !== 'ADMIN') {
+      res.status(400).json({ error: 'Invalid role' });
+      return;
+    }
+
     const membership = await prisma.groupMembership.create({
-      data: { groupId, userId, role },
+      data: { groupId, userId: userIdToAdd, role },
       include: { user: { select: { id: true, username: true } } },
     });
 
@@ -397,7 +446,7 @@ router.post(
         userId: membership.user.id,
         username: membership.user.username,
         role: membership.role,
-        joinedAt: new Date(membership.joinedAt).getTime(), // Unix timestamp
+        joinedAt: new Date(membership.joinedAt).getTime(),
       });
     }
 
@@ -405,11 +454,12 @@ router.post(
       userId: membership.user.id,
       username: membership.user.username,
       role: membership.role,
-      joinedAt: new Date(membership.joinedAt).getTime(), // Unix timestamp
+      joinedAt: new Date(membership.joinedAt).getTime(),
     });
   })
 );
 
+// DELETE /groups/:id/members/:userId - remove member
 router.delete(
   '/:id/members/:userId',
   authenticateToken,

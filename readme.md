@@ -72,31 +72,25 @@ You receive this token after logging in (`POST /auth/login`).
   - Create a group.
   - Body: `{ "name": "string" }`
   - Requires auth.
-
 - **GET `/groups`**
   - List groups you belong to.
   - Requires auth.
+- **PUT `/groups/:id`**
+  - Update group
 - **POST `/groups/:id/messages`** 
   - Send a message to a group by ID
 - **GET `/groups/:id`**
   - Get group details by id.
   - Requires auth.
-
 - **GET `/groups/:id/messages`**
   - Get messages from a group.
   - Requires auth.
   - Returns: `[{ id, content, createdAt, username }, ...]`
-
+- **DELETE `/groups/:id/members/:userId`**
+  - Deletes :userId from group :id
+- **POST `/groups/:id/members/:userId`** 
+  - Add member :userId to group :id
 ---
-
-### Messages
-
-- **POST `/dm/:id/messages`**
-  - Send a direct message
-- **GET `/dm/:id/messages`**
-  - Get all DMs between current user and :id
-- **GET `/messages/:groupId`**
-  - Get all group messages
 
 ---
 

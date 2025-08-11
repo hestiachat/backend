@@ -10,7 +10,6 @@ import compression from 'compression';
 import { Server as SocketIOServer } from 'socket.io';
 import publicAPILimiter from './middleware/ratelimit'
 
-import messageRoutes from './routes/messages';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import friendsRoutes from './routes/friends';
@@ -61,14 +60,12 @@ app.get('/health', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/groups', groupRoutes);
-app.use('/messages', messageRoutes);
 app.use('/users', usersRoutes);
 app.use('/friends', friendsRoutes);
 
 app.use(errorHandler);
 
 app.use('/uploads/avatars', express.static(path.join(__dirname, '../uploads/avatars')));
-app.use('/secret', express.static(path.join(__dirname, '../secret')));
 setupSocket(io);
 app.set('io', io);
 
