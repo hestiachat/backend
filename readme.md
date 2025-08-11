@@ -1,3 +1,11 @@
+[![Build Status](https://img.shields.io/github/actions/workflow/status/hestiachat/backend/ci.yml?branch=main)](https://github.com/hestiachat/backend/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/hestiachat/backend)](https://codecov.io/gh/hestiachat/backend)
+[![License](https://img.shields.io/github/license/hestiachat/backend)](https://github.com/hestiachat/backend/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/hestiachat/backend)](https://github.com/hestiachat/backend/releases)
+[![Issues](https://img.shields.io/github/issues/hestiachat/backend)](https://github.com/hestiachat/backend/issues)
+[![Pull Requests](https://img.shields.io/github/issues-pr/hestiachat/backend)](https://github.com/hestiachat/backend/pulls)
+[![Last Commit](https://img.shields.io/github/last-commit/hestiachat/backend/main)](https://github.com/hestiachat/backend/commits/main)
+[![Contributors](https://img.shields.io/github/contributors/hestiachat/backend)](https://github.com/hestiachat/backend/graphs/contributors)
 # Hestia Chat Backend — API Documentation
 
 ## Authorization
