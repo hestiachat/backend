@@ -90,8 +90,15 @@ You receive this token after logging in (`POST /auth/login`).
 
 ### Messages
 
-- **Routes under `/messages`**  
-  (See code for details, typically send/list group messages.)
+- **POST `/messages`**
+  - Send a message to a group
+  - Body: { groupId: number, content: string }
+- **POST `/dm/:id/messages`**
+  - Send a direct message
+- **GET `/dm/:id/messages`**
+  - Get all DMs between current user and :id
+- **GET `/messages/:groupId`**
+  - Get all group messages
 
 ---
 
