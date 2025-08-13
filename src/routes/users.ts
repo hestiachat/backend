@@ -303,6 +303,22 @@ router.patch('/profile-picture', authenticateToken, uploadAvatar.single('avatar'
   }
 }));
 
+router.patch('/fcm-token', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  const { token } = req.body;
+  if (!userId || !token) {
+    res.status(400).json({ error: "Missing userId or token" });
+    return;
+  }
+  // Save or update token in DB, e.g., upsert pattern
+  await prisma.fcmToken.upsert({
+    where: { userId_token: { userId, token } },
+    update: {},
+    create: { userId, token }
+  });
+  res.json({ success: true });
+}));
+
 // PATCH /users/profile-banner
 router.patch('/profile-banner', authenticateToken, uploadBanner.single('banner'), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   // @ts-ignore

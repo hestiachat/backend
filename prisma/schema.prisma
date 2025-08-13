@@ -24,8 +24,19 @@ model User {
   status            String            @default("offline")
   lastActive        DateTime          @default(now())
   Group Group[]
-
+  fcmToken          String?
   Message Message[] @relation("RecipientMessages")
+
+  FcmToken FcmToken[]
+}
+
+model FcmToken {
+  id     Int    @id @default(autoincrement())
+  userId Int
+  token  String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, token])
 }
 
 model Group {
