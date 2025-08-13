@@ -14,6 +14,7 @@ import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import friendsRoutes from './routes/friends';
 import groupRoutes from './routes/groups';
+import rootRoutes from './routes/root';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
 
@@ -57,7 +58,7 @@ app.get('/health', (req, res) => {
 });
 
 // app.use(publicAPILimiter);
-
+app.use('/', rootRoutes);
 app.use('/auth', authRoutes);
 app.use('/groups', groupRoutes);
 app.use('/users', usersRoutes);
