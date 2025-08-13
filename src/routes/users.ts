@@ -102,7 +102,7 @@ router.get('/by-username/:username', asyncHandler(async (req: Request, res: Resp
   }
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true, profileBannerUrl: true}
+    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true, profileBannerUrl: true, status: true }
   });
   if (!user) {
     res.status(404).json({ error: 'User not found' });
@@ -132,7 +132,7 @@ router.patch('/bio', authenticateToken, asyncHandler(async (req: Request, res: R
   const user = await prisma.user.update({
     where: { id: userId },
     data: { bio },
-    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true, profileBannerUrl: true}
+    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true, profileBannerUrl: true, status: true }
   });
   res.json({
     ...user,
@@ -151,7 +151,7 @@ router.get('/by-id/:id', asyncHandler(async (req: Request, res: Response): Promi
   }
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true, profileBannerUrl: true}
+    select: { id: true, username: true, profilePictureUrl: true, bio: true, createdAt: true, profileBannerUrl: true, status: true }
   });
   if (!user) {
     res.status(404).json({ error: 'User not found' });
@@ -198,6 +198,44 @@ router.patch('/username', authenticateToken, asyncHandler(async (req: Request, r
       throw err;
     }
   }
+}));
+
+// PATCH /users/status
+router.patch('/status', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  const userId = req.user?.userId;
+  const { status } = req.body;
+
+  const allowed = ['active', 'offline', 'do_not_disturb'];
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (typeof status !== 'string' || !allowed.includes(status)) {
+    res.status(400).json({ error: 'Invalid status' });
+  }
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { status },
+    select: { id: true, username: true, status: true }
+  });
+  res.json(user);
+}));
+
+
+// what the fuck is this bro 😭😭
+router.patch('/heartbeat', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  // @ts-ignore
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: { lastActive: new Date(), status: 'active' }
+  });
+  res.json({ success: true });
 }));
 
 // DELETE /users/me

@@ -21,7 +21,8 @@ model User {
   friendOf          Friend[]          @relation("FriendsOfUser")
   sentRequests      FriendRequest[]   @relation("SentRequests")
   receivedRequests  FriendRequest[]   @relation("ReceivedRequests")
-
+  status            String            @default("offline")
+  lastActive        DateTime          @default(now())
   Group Group[]
 
   Message Message[] @relation("RecipientMessages")

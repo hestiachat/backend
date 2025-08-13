@@ -17,6 +17,8 @@ import groupRoutes from './routes/groups';
 import rootRoutes from './routes/root';
 import { errorHandler } from './middleware/errorHandler';
 import { setupSocket } from './socket';
+import { prisma } from './prismaClient';
+import cron from 'node-cron';
 
 const app = express();
 const server = http.createServer(app);
@@ -71,6 +73,17 @@ setupSocket(io);
 app.set('io', io);
 
 const PORT = parseInt(process.env.PORT || '4000');
+
+cron.schedule('* * * * *', async () => {
+  const twoMinutesAgo = new Date(Date.now() - 1 * 60 * 1000);
+  await prisma.user.updateMany({
+    where: {
+      lastActive: { lt: twoMinutesAgo },
+      status: 'active'
+    },
+    data: { status: 'offline' }
+  });
+});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
