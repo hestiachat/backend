@@ -222,22 +222,6 @@ router.patch('/status', authenticateToken, asyncHandler(async (req: Request, res
   res.json(user);
 }));
 
-
-// what the fuck is this bro 😭😭
-router.patch('/heartbeat', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  // @ts-ignore
-  const userId = req.user?.userId;
-  if (!userId) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-  await prisma.user.update({
-    where: { id: userId },
-    data: { lastActive: new Date(), status: 'active' }
-  });
-  res.json({ success: true });
-}));
-
 // DELETE /users/me
 router.delete('/me', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
   // @ts-ignore

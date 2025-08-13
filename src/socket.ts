@@ -61,6 +61,20 @@ export function setupSocket(io: Server) {
     }
     socket.join(`user_${userId}`);
 
+    // Set user status to 'active' on connect
+    prisma.user.update({
+      where: { id: userId },
+      data: { status: "active", lastActive: new Date() }
+    }).catch(console.error);
+
+    // Set user status to 'offline' on disconnect
+    socket.on("disconnect", async () => {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: "offline" }
+      }).catch(console.error);
+    });
+
     // Join all DM and group rooms for this user (optional: on connect)
     // You may want to fetch user's groups and DM rooms and call socket.join for each.
 
