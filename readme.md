@@ -35,7 +35,7 @@ It handles user authentication, messaging, groups, friends, file uploads, notifi
    ```sh
    git clone https://github.com/hestiachat/backend.git
    cd backend
-   npm install
+   bun install
    ```
 
 2. **Configure environment**
@@ -44,15 +44,15 @@ It handles user authentication, messaging, groups, friends, file uploads, notifi
 
 3. **Database setup**
    ```sh
-   npx prisma migrate dev --name init
-   npx prisma generate
+   bunx prisma migrate dev --name init
+   bunx prisma generate
    ```
 
 4. **Run the server**
    ```sh
-   npm run dev
+   bun run dev
    # or for production
-   npm run build && npm start
+   bun run build && bun run start
    ```
 
 ---
@@ -246,7 +246,6 @@ socket.on("newDM", (msg) => {
 
 - Most endpoints return errors as: `{ error: "error message" }`
 - Rate limits apply to some endpoints.
-- For full API details, see the [OpenAPI spec](./openapi.yaml) (if present).
 
 ---
 

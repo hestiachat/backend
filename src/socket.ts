@@ -129,11 +129,16 @@ async function handleGetDMHistory(socket: Socket, userId: number, { otherId }: a
   }
 }
 
-async function handleJoinGroup(socket: Socket, userId: number, { groupId }: any) {
+async function handleJoinGroup(
+  socket: Socket,
+  userId: number,
+  data?: { groupId?: number }
+) {
+  const { groupId } = data || {};
   if (!groupId) return;
   try {
     const membership = await prisma.groupMembership.findFirst({ where: { groupId, userId } });
-    if (membership) joinRoom(socket, `group_${groupId}`);
+    if (membership) socket.join(`group_${groupId}`);
   } catch (err) {
     socket.emit("error", { error: "Failed to join group" });
     console.error(err);
